@@ -1,0 +1,4 @@
+name = Hexperimental Trivia
+description = Module to control Trivia Flash app. 
+core = 6.x
+package = Hexperimental

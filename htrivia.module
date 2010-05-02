@@ -1,0 +1,168 @@
+<?php
+include( 'htrivia.defaults.inc' );
+/**
+ * Implementation of hook_menu().
+ */
+function htrivia_menu() {
+	$items = array();
+
+  $items['admin/settings/htrivia'] = array(
+    'title' => 'hTrivia Config',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('htrivia_admin_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer BoxOffice'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'htrivia.admin.inc',
+  );
+
+  $items['htrivia'] = array(
+    'title' => 'Hexperimental Trivia',
+    'page callback' => 'htrivia_handler',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+	return $items;
+}
+
+function htrivia_handler(){
+	
+	
+	$axn = $_POST['a'];
+	if(!$axn){$axn='list';}
+	
+	$limit = $_POST['l'];
+	$filter = $_POST['opt'];//unanswered';
+	
+	switch ($axn){
+		case 'answer':
+			$qid = $_POST['q'];
+			$oid = $_POST['o'];
+			$pts = $_POST['p'];
+			htrivia_submit_answer( $qid, $oid, $pts );
+			print json_encode(array('success'=>'1'));
+		break;
+		
+		case 'add':
+			//print 'answer question';
+		break;
+		
+		case 'list':
+		default:
+			print json_encode(htrivia_question_list());
+		break;
+	}
+	
+	exit;
+}
+
+function htrivia_submit_answer( $qid,$oid, $pts ) {
+	global $user;
+	$uid = $user->uid;
+	$now = time();
+
+	$exists = db_result(db_query( "SELECT count(*) FROM {htrivia_answers} WHERE qid=$qid AND uid=$uid" ));
+	//add this var to a setting. 
+	$overwrite_answer = TRUE;
+	if($exists>0){
+		if( $overwrite_answer ){
+			$qry = "UPDATE {htrivia_answers} SET `oid` = $oid, points = $pts WHERE qid=$qid AND uid=$uid";
+			db_query( $qry );			
+		}
+	}else{
+		$qry = "INSERT INTO {htrivia_answers} (`qid`,`oid`,`points`,`uid`,`submitted`) VALUES ($qid,$oid,$pts,$uid,$now)";
+		db_query( $qry );		
+	}
+}
+
+function htrivia_question_list() {
+ return  htrivia_question_list_raw('ORDER BY RAND() LIMIT 10 ');
+}
+
+function _htrivia_parse_file() {
+	$filepath = variable_get('htrivia_csv_path', HTRIVIA_CSV_PATH);
+	$row = 1;
+	if (($handle = fopen($filepath, "r")) !== FALSE) {
+		  $questions = array();
+	    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+					$questions[]=array(
+						'id'=>$data[0],
+						'question'=>$data[1],
+						'answer'=>$data[6],
+						'options'=>	array($data[2],$data[3],$data[4],$data[5])
+					);
+	    }
+	    fclose($handle);
+	}
+	return $questions;
+}
+
+function htrivia_add_question_batch( $questions ) {
+	foreach( $questions as $question ) {
+		htrivia_add_question( $question['id'], $question['question'], $question['answer'], $question['options'] );
+		_p("Question ".$question['id']." was added along with its ". count($question['options'])." options.");
+	}
+}
+
+function htrivia_add_question( $id, $question, $answer, $options ) {
+	$optStr = '';
+	$count = 1;
+	$opts = array();
+	
+	$qqry = "INSERT INTO {htrivia_question} (id, question, oid ) VALUES ( $id, '$question', $answer )";
+	$result = db_query($qqry);
+	$qid = db_last_insert_id('htrivia_question','qid');
+	
+	foreach($options as $opt){
+		$valid = ($count == $answer)?'1':'0';
+		$opts[] = "( $qid, '$opt', '', $valid ) ";
+		$count++;
+	}
+	
+	$optStr = implode(', ',$opts);
+	
+	$oqry = "INSERT INTO {htrivia_options} (`qid`, `option`, `value`, `status` ) VALUES ".$optStr;
+	$res2 = db_query($oqry);
+}
+
+function htrivia_question_list_raw( $filter = '' ) {
+	$qry = "SELECT * FROM {htrivia_question} ". $filter;
+	$result = db_query( $qry );
+	$questions = array();
+	
+	while( $quest = db_fetch_object( $result ) ){	
+		$questions[] = array(
+		'id' => $quest->id,
+		'qid' => $quest->qid,
+		'question' => $quest->question,
+		'answer' => $quest->oid,
+		'options' => htrivia_options_for_questions( $quest->qid ),
+		);
+  }
+	return $questions;
+}
+
+function htrivia_options_for_questions( $qid ) {
+	$oqry = "SELECT * FROM {htrivia_options} WHERE qid=$qid";
+	$res = db_query( $oqry );
+	$option = array();
+	while( $opt = db_fetch_object( $res ) ){
+		$option[]=array(
+		'oid'=>$opt->oid,
+		'option'=>$opt->option,
+		'value'=>$opt->value,
+		'status'=>$opt->status,
+		);
+	}
+	return $option;
+}
+
+function htrivia_question_count(){
+	return db_result( db_query( " SELECT count(*) FROM { htrivia_question } " ) );
+}
+
+function htrivia_add_options() {
+	
+}
+

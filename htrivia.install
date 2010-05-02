@@ -1,0 +1,137 @@
+<?php
+
+/**
+ * Implementation of hook_install().
+ */
+function htrivia_install() {
+	$success = drupal_install_schema('htrivia');
+	if ($success) {
+    drupal_set_message(st('htrivia module installed tables successfully.'));
+  } else {
+    drupal_set_message(st('The installation of htrivia module failed.'), 'error');
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function htrivia_uninstall() {
+  drupal_uninstall_schema('htrivia');
+  
+	//$result = db_query("SELECT name FROM {variable} WHERE name LIKE 'flag_%'");
+  //while ($row = db_fetch_object($result)) {
+  //  variable_del($row->name);
+  //}
+
+  drupal_set_message(t('htrivia has been uninstalled.'));
+}
+
+
+/**
+ * Implementation of hook_schema().
+ */
+function htrivia_schema() {
+  $schema = array();
+
+  $schema['htrivia_question'] = array(
+    'fields' => array(
+      'qid' => array(
+        'type' => 'serial',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'id' => array(
+        'type' => 'int',
+        'length' => '11',
+        'not null' => TRUE,
+      ),
+      'question' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'oid' => array(
+        'type' => 'int',
+        'length' => '11',
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+  
+    ),
+    'primary key' => array('qid'),
+  );
+
+  $schema['htrivia_options'] = array(
+    'fields' => array(
+      'oid' => array(
+        'type' => 'serial',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'qid' => array(
+        'type' => 'int',
+        'length' => '11',
+        'not null' => TRUE,
+      ),
+      'option' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'value' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+        'default' => '',
+      ),  
+      'status' => array(
+        'type' => 'int',
+        'length' => '1',
+        'not null' => TRUE,
+        'default' => 0,
+      ),    ),
+    'primary key' => array('oid'),
+  );
+ 
+  $schema['htrivia_answers'] = array(
+    'fields' => array(
+      'aid' => array(
+        'type' => 'serial',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'qid' => array(
+        'type' => 'int',
+        'length' => '11',
+        'not null' => TRUE,
+      ),
+      'oid' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'points' => array(
+        'type' => 'int',
+        'length' => '5',
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'length' => '11',
+        'not null' => TRUE,
+        'default' => 0,
+      ),  
+      'submitted' => array(
+        'type' => 'varchar',
+        'length' => '15',
+        'not null' => TRUE,
+        'default' => 0,
+      ),    
+		),
+    'primary key' => array('aid'),
+  );
+  return $schema;
+}
